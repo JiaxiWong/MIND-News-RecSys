@@ -1,12 +1,13 @@
 """
 MIND News Recommendation System with BERT + DIN
-Author: [Jiaxi]
+Author: [JXW]
 Date: 2025-11-29
-Version: 1
+Version: 1.0
 Description: 
     This project implements a CTR prediction model using DIN (Deep Interest Network).
     It utilizes BERT for semantic warm-up of news embeddings and adopts a 
     two-stage training strategy (Warm-up + Fine-tuning).
+    Please pay attention to the text prompt, which tells you where the code is running.
 """
 
 import os
