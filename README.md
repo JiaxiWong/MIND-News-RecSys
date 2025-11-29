@@ -1,10 +1,10 @@
 # News Recommendation with DIN + BERT Warm-up 
 
-This project implements a Deep Interest Network (DIN) for news recommendation on the **MIND Dataset**. 
-It features a **Semantic Warm-up** strategy using BERT embeddings to solve the item cold-start problem.
+This project implements a Deep Interest Network (DIN) for news recommendation on the MIND Dataset. 
+It features a Semantic Warm-up strategy using BERT embeddings to solve the item cold-start problem.
 
 ## Performance (MIND-Large Validation) compared with SOTA
-| Metric | Score (Our Model) | SOTA（Rank:1） | Avg. (TOP 150) |
+|  | Our Model | SOTA（Rank:1） | Avg. (TOP 150) |
 | :--- | :--- |:--- |:--- |
 | **Global AUC** | **0.7133** |**0.7304** |**0.697** |
 | **GAUC** | **0.6932** |**NULL** |**NULL** |
@@ -13,10 +13,11 @@ It features a **Semantic Warm-up** strategy using BERT embeddings to solve the i
 
 ## Key Features
 1. **Semantic Initialization**: Uses `all-MiniLM-L6-v2` (BERT) to encode news titles, reducing dimensions via PCA (32-dim).
-2. **Two-Stage Training**:
+2. **Attention-Based Interest Modeling**：this model utilizes an Attention Mechanism to capture the diversity of user interests. It dynamically calculates the relevance between the candidate news and each item in the user's reading history. This allows the model to adaptively assign higher weights to relevant historical behaviors while suppressing noise from irrelevant clicks, resulting in more precise and personalized recommendations.
+3. **Two-Stage Training**:
    - **Warm-up**: Freeze BERT embeddings, train MLP.
    - **Fine-tuning**: Unfreeze all layers with low LR (`5e-5`).
-3. **Multi-Modal Features**: Incorporates News ID, Category, and Subcategory.
+4. **Multi-Modal Features**: Incorporates News ID, Category, and Subcategory.
 
 ## Quick Start
 1. Install dependencies: `pip install -r requirements.txt`
