@@ -1,7 +1,7 @@
 """
 MIND News Recommendation System with BERT + DIN
-Author: [Jiaxi Wang]
-Date: 2025-11-28
+Author: [Your Name]
+Date: 2025-11-29
 Description: 
     This project implements a CTR prediction model using DIN (Deep Interest Network).
     It utilizes BERT for semantic warm-up of news embeddings and adopts a 
@@ -10,7 +10,6 @@ Description:
 
 import os
 import random
-import pickle
 import numpy as np
 import pandas as pd
 import torch
@@ -20,10 +19,11 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import roc_auc_score
 
 # Deep Learning Imports
+# Ensure you have tensorflow or keras-preprocessing installed
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from sentence_transformers import SentenceTransformer
 
-# Recommender System Imports (Torch-Rechub)
+# Recommender System Imports (Only Torch-Rechub)
 from torch_rechub.models.ranking import DIN
 from torch_rechub.basic.features import SparseFeature, SequenceFeature
 from torch_rechub.trainers import CTRTrainer
@@ -31,10 +31,9 @@ from torch_rechub.utils.data import DataGenerator
 
 # --- 1. Global Configuration ---
 class Config:
-    # Paths
+    # Paths (Modify these to your actual paths)
     TRAIN_PATH = 'data/MINDlarge_train'
     VAL_PATH = 'data/MINDlarge_dev'
-    SAVE_DIR = './checkpoints'
     
     # Model Hyperparams
     EMBEDDING_DIM = 32  # BERT PCA dimension
@@ -48,7 +47,7 @@ class Config:
     EPOCH_WARMUP = 1
     EPOCH_FINETUNE = 8
     
-    # Environment
+    # Environment (Auto-detect)
     DEVICE = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
 
 # Ensure reproducibility
@@ -63,15 +62,19 @@ def seed_everything(seed=Config.SEED):
 
 # --- 2. Data Processing Utils ---
 def load_raw_data():
-    print(" Loading raw data...")
+    print("🚀 Loading raw data...")
     news_cols = ['news_id', 'category', 'subcategory', 'title', 'abstract', 'url', 'title_entities', 'abstract_entities']
     behaviors_cols = ['impression_id', 'user_id', 'time', 'history', 'impressions']
 
-    train_news = pd.read_csv(f'{Config.TRAIN_PATH}/news.tsv', sep='\t', header=None, names=news_cols)
-    train_behaviors = pd.read_csv(f'{Config.TRAIN_PATH}/behaviors.tsv', sep='\t', header=None, names=behaviors_cols)
-    
-    valid_news = pd.read_csv(f'{Config.VAL_PATH}/news.tsv', sep='\t', header=None, names=news_cols)
-    valid_behaviors = pd.read_csv(f'{Config.VAL_PATH}/behaviors.tsv', sep='\t', header=None, names=behaviors_cols)
+    try:
+        train_news = pd.read_csv(f'{Config.TRAIN_PATH}/news.tsv', sep='\t', header=None, names=news_cols)
+        train_behaviors = pd.read_csv(f'{Config.TRAIN_PATH}/behaviors.tsv', sep='\t', header=None, names=behaviors_cols)
+        
+        valid_news = pd.read_csv(f'{Config.VAL_PATH}/news.tsv', sep='\t', header=None, names=news_cols)
+        valid_behaviors = pd.read_csv(f'{Config.VAL_PATH}/behaviors.tsv', sep='\t', header=None, names=behaviors_cols)
+    except FileNotFoundError:
+        print("❌ Error: Data files not found. Please check Config.TRAIN_PATH.")
+        exit(1)
     
     # Concat news for full vocabulary
     all_news = pd.concat([train_news, valid_news]).drop_duplicates(subset=['news_id'])
@@ -80,10 +83,13 @@ def load_raw_data():
 def process_behaviors(df, mode='train', neg_ratio=4):
     """ Process behavior logs into samples with negative sampling """
     samples = []
-    for _, row in tqdm(df.iterrows(), total=df.shape[0], desc=f"Processing {mode}"):
+    # Check if impression_id exists, otherwise use index
+    has_imp_id = 'impression_id' in df.columns
+    
+    for idx, row in tqdm(df.iterrows(), total=df.shape[0], desc=f"Processing {mode}"):
         user_id = str(row['user_id'])
-        # Impression ID for evaluation grouping
-        imp_id = row['impression_id'] if 'impression_id' in row else 0
+        # Use existing impression_id or fallback to row index
+        imp_id = row['impression_id'] if has_imp_id else idx
         
         hist = str(row['history']).split() if pd.notna(row['history']) else ['N0']
         hist_str = " ".join(hist)
@@ -106,12 +112,14 @@ def process_behaviors(df, mode='train', neg_ratio=4):
                 if len(neg_list) >= neg_ratio:
                     negs = random.sample(neg_list, neg_ratio)
                 else:
+                    # Circular padding if not enough negatives
                     negs = neg_list * (neg_ratio // len(neg_list)) + neg_list[:neg_ratio % len(neg_list)] if neg_list else []
                 for neg_news in negs:
                     samples.append([user_id, hist_str, neg_news, 0, imp_id])
         else:
             # Validation: keep all samples
             for imp in impressions:
+                if '-' not in imp: continue
                 news_id, label = imp.split('-')
                 samples.append([user_id, hist_str, news_id, int(label), imp_id])
                 
@@ -125,13 +133,15 @@ def build_features(train_df, val_df, all_news):
     lbe_user = LabelEncoder()
     all_users = pd.concat([train_df['user_id'], val_df['user_id']]).unique()
     lbe_user.fit(all_users)
+    vocab_size_user = len(lbe_user.classes_)
     
     train_df['user_id_idx'] = lbe_user.transform(train_df['user_id'])
     val_df['user_id_idx'] = lbe_user.transform(val_df['user_id'])
     
     # News ID
     lbe_news = LabelEncoder()
-    all_news_ids = set(all_news['news_id']) | {'N0'}
+    # Collect all possible news IDs from News info and History
+    all_news_ids = set(all_news['news_id']) | {'N0'} 
     lbe_news.fit(list(all_news_ids))
     vocab_size_news = len(lbe_news.classes_) + 1
     news_map = dict(zip(lbe_news.classes_, range(1, len(lbe_news.classes_) + 1))) # 0 is padding
@@ -176,11 +186,11 @@ def build_features(train_df, val_df, all_news):
     train_df = process_df_features(train_df)
     val_df = process_df_features(val_df)
     
-    return train_df, val_df, lbe_news, news_map, vocab_size_news, vocab_size_cat, vocab_size_subcat
+    return train_df, val_df, lbe_news, news_map, vocab_size_user, vocab_size_news, vocab_size_cat, vocab_size_subcat
 
 # --- 4. BERT Warm-up ---
 def get_bert_embeddings(all_news, lbe_news, vocab_size_news):
-    print(" Generating BERT embeddings...")
+    print("🤖 Generating BERT embeddings...")
     # Initialize zero matrix (Row 0 is padding)
     pretrained_emb = np.zeros((vocab_size_news, Config.EMBEDDING_DIM))
     
@@ -194,6 +204,7 @@ def get_bert_embeddings(all_news, lbe_news, vocab_size_news):
     embeddings = model_bert.encode(titles, batch_size=256, show_progress_bar=True)
     
     # PCA Reduction
+    print(f"📉 Reducing dimension to {Config.EMBEDDING_DIM}...")
     pca = PCA(n_components=Config.EMBEDDING_DIM)
     embeddings_reduced = pca.fit_transform(embeddings)
     
@@ -219,6 +230,7 @@ def calculate_metrics(grouped_df):
         first_pos = np.where(sorted_labels == 1)[0]
         mrrs.append(1.0 / (first_pos[0] + 1) if len(first_pos) > 0 else 0)
         
+        # Numpy 2.0 compatible ndcg calculation
         def ndcg(r, k):
             r = np.asarray(r, dtype=float)[:k]
             dcg = np.sum(r / np.log2(np.arange(2, r.size + 2))) if r.size else 0
@@ -240,15 +252,16 @@ if __name__ == "__main__":
     val_df = process_behaviors(valid_behaviors, mode='valid')
     
     # 2. Features
-    train_df, val_df, lbe_news, news_map, vocab_news, vocab_cat, vocab_subcat = \
+    train_df, val_df, lbe_news, news_map, vocab_user, vocab_news, vocab_cat, vocab_subcat = \
         build_features(train_df, val_df, all_news)
         
     # 3. BERT Embeddings
     pretrained_emb = get_bert_embeddings(all_news, lbe_news, vocab_news)
     
     # 4. Model Definition
-    print("Defining DIN Model...")
-    user_cols = [SparseFeature("user_id_idx", vocab_size=train_df['user_id_idx'].max()+1, embed_dim=Config.EMBEDDING_DIM)]
+    print("🏗 Defining DIN Model...")
+    # Fix: use safe vocab size
+    user_cols = [SparseFeature("user_id_idx", vocab_size=vocab_user + 100, embed_dim=Config.EMBEDDING_DIM)]
     item_cols = [
         SparseFeature("news_id_idx", vocab_size=vocab_news, embed_dim=Config.EMBEDDING_DIM),
         SparseFeature("cat_idx", vocab_size=vocab_cat, embed_dim=Config.EMBEDDING_DIM),
@@ -265,11 +278,15 @@ if __name__ == "__main__":
                 mlp_params={"dims": [256, 128], "dropout": 0.3}, attention_mlp_params={"dims": [64, 32]})
     
     # 5. Inject Weights
+    embedding_param = None
     for name, param in model.named_parameters():
         if "news_id_idx" in name and "weight" in name:
-            param.data.copy_(pretrained_emb)
-            embedding_param = param
-            print("BERT weights injected.")
+            try:
+                param.data.copy_(pretrained_emb)
+                embedding_param = param
+                print("✅ BERT weights injected.")
+            except Exception as e:
+                print(f"❌ Weight Injection Failed: {e}")
             break
             
     # 6. DataLoader
@@ -280,29 +297,33 @@ if __name__ == "__main__":
                                                                batch_size=Config.BATCH_SIZE, num_workers=0)
     
     # 7. Training Strategy
-    print(f" Device: {Config.DEVICE}")
+    print(f"🚀 Training on Device: {Config.DEVICE}")
     
     # Stage 1: Warm-up
-    print(" Stage 1: Warm-up...")
-    embedding_param.requires_grad = False
+    print("🔥 Stage 1: Warm-up...")
+    if embedding_param is not None:
+        embedding_param.requires_grad = False
+        
     trainer = CTRTrainer(model, optimizer_params={"lr": Config.LR_WARMUP, "weight_decay": 1e-4}, 
                          n_epoch=Config.EPOCH_WARMUP, device=Config.DEVICE)
     trainer.fit(train_loader, val_loader)
     
     # Stage 2: Fine-tuning
-    print(" Stage 2: Fine-tuning...")
-    embedding_param.requires_grad = True
+    print("🚀 Stage 2: Fine-tuning...")
+    if embedding_param is not None:
+        embedding_param.requires_grad = True
+        
     trainer = CTRTrainer(model, optimizer_params={"lr": Config.LR_FINETUNE, "weight_decay": 1e-4}, 
                          n_epoch=Config.EPOCH_FINETUNE, device=Config.DEVICE)
     trainer.fit(train_loader, val_loader)
     
     # 8. Final Evaluation
-    print(" Evaluating...")
+    print("📊 Evaluating...")
     model.eval()
+    # Fix: pass model explicitly to predict
     y_pred = trainer.predict(model, val_loader)
     val_df['pred'] = np.array(y_pred)
     
-    if 'impression_id' not in val_df.columns: val_df['impression_id'] = val_df['user_id'] # Fallback
     gauc, mrr, ndcg5, ndcg10 = calculate_metrics(val_df.groupby('impression_id'))
     
     print(f"Global AUC: {roc_auc_score(val_df['label'], y_pred):.4f}")
@@ -310,4 +331,4 @@ if __name__ == "__main__":
     
     # Save
     torch.save(model.state_dict(), 'din_best_model.pth')
-    print(" Done.")
+    print("✅ Training Complete. Model saved.")
