@@ -12,7 +12,7 @@ It features a **Semantic Warm-up** strategy using BERT embeddings to solve the i
 | **nDCG@10** | **0.3917** |
 
 ## Key Features
-1. **Semantic Initialization**: Uses `all-MiniLM-L6-v2` (BERT) to encode news titles, reducing dimensions via PCA (64-dim).
+1. **Semantic Initialization**: Uses `all-MiniLM-L6-v2` (BERT) to encode news titles, reducing dimensions via PCA (32-dim).
 2. **Two-Stage Training**:
    - **Warm-up**: Freeze BERT embeddings, train MLP.
    - **Fine-tuning**: Unfreeze all layers with low LR (`5e-5`).
