@@ -13,11 +13,12 @@ It features a Semantic Warm-up strategy using BERT embeddings to solve the item 
 
 ## Key Features
 1. **Semantic Initialization**: Uses `all-MiniLM-L6-v2` (BERT) to encode news titles, reducing dimensions via PCA (32-dim).
-2. **Attention-Based Interest Modeling**：this model utilizes an Attention Mechanism to capture the diversity of user interests. It dynamically calculates the relevance between the candidate news and each item in the user's reading history. This allows the model to adaptively assign higher weights to relevant historical behaviors while suppressing noise from irrelevant clicks, resulting in more precise and personalized recommendations.
-3. **Two-Stage Training**:
+2. **Attention-Based Interest Modeling**：
+   - **Attention Mechanism**: Use Attention Mechanism to capture the diversity of user interests. It dynamically calculates the relevance between the candidate news and each item in the user's reading history. This allows the model to adaptively assign higher weights to relevant historical behaviors while suppressing noise from irrelevant clicks, resulting in more precise and personalized recommendations.
+4. **Two-Stage Training**:
    - **Warm-up**: Freeze BERT embeddings, train MLP.
    - **Fine-tuning**: Unfreeze all layers with low LR (`5e-5`).
-4. **Multi-Modal Features**: Incorporates News ID, Category, and Subcategory.
+5. **Multi-Modal Features**: Incorporates News ID, Category, and Subcategory.
 
 ## Quick Start
 1. Install dependencies: `pip install -r requirements.txt`
