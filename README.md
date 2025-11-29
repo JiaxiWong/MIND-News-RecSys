@@ -12,13 +12,29 @@ It features a Semantic Warm-up strategy using BERT embeddings to solve the item 
 | **nDCG@5** | **0.3917** |**0.4718** |**0.378** |
 
 ## Key Features
-1. **Semantic Initialization**: Uses `all-MiniLM-L6-v2` (BERT) to encode news titles, reducing dimensions via PCA (32-dim).
-2. **Attention-Based Interest Modeling**：
-   - **Attention Mechanism**: Use Attention Mechanism to capture the diversity of user interests. It dynamically calculates the relevance between the candidate news and each item in the user's reading history. This allows the model to adaptively assign higher weights to relevant historical behaviors while suppressing noise from irrelevant clicks, resulting in more precise and personalized recommendations.
-4. **Two-Stage Training**:
-   - **Warm-up**: Freeze BERT embeddings, train MLP.
-   - **Fine-tuning**: Unfreeze all layers with low LR (`5e-5`).
-5. **Multi-Modal Features**: Incorporates News ID, Category, and Subcategory.
+### 1. Semantic Initialization
+Utilizes the pre-trained **`all-MiniLM-L6-v2` (BERT)** model to encode news titles into high-quality semantic vectors. These vectors are compressed to **32 dimensions via PCA**, ensuring efficient computation while retaining rich semantic information to solve the item cold-start problem.
+
+### 2. Attention-Based Interest Modeling
+Unlike traditional pooling methods, this model leverages an **Attention Mechanism** to capture diverse user interests dynamically:
+* **Dynamic Relevance:** Dynamically calculates the relevance score between the candidate news and each item in the user's reading history.
+* **Noise Suppression:** Adaptively assigns higher weights to relevant historical behaviors while suppressing noise from accidental or irrelevant clicks, resulting in highly precise and personalized recommendations.
+
+### 3. Robust Two-Stage Training Strategy
+To effectively bridge the gap between general semantic knowledge (BERT) and specific user preference patterns (CTR task), we adopt a robust training pipeline:
+* **Stage 1: Warm-up (Freezing Strategy):**
+    * The pre-trained BERT embeddings are **frozen** (gradients not calculated).
+    * Only the downstream DIN network (MLP) is trained with a higher learning rate (`1e-3`).
+    * *Purpose:* Prevents noisy gradients from the randomly initialized MLP layers from distorting the high-quality semantic representations of the pre-trained language model.
+* **Stage 2: Global Fine-tuning:**
+    * All layers (including BERT embeddings) are **unfrozen** and trained jointly with a very low learning rate (`5e-5`).
+    * *Purpose:* Performs **Domain Adaptation**, allowing generic semantic vectors to align with the specific content distribution and user click behaviors of the MIND dataset.
+
+### 4. Multi-Modal Feature Fusion
+To tackle data sparsity, the model constructs a dense, hierarchical representation for every news item instead of relying solely on sparse Item IDs:
+* **Hierarchical Structure:** Integrates **News ID**, **Category** (e.g., Sports), and **Subcategory** (e.g., Basketball_NBA).
+* **Cold-Start Robustness:** By incorporating category features, the model can leverage **generalized user interests** (e.g., recommending a new "Tech" article to a tech-savvy user) even if the specific News ID has no interaction history.
+* **DIN Integration:** The attention mechanism is applied across both ID and category sequences, capturing user interests at multiple levels of granularity.
 
 ## Quick Start
 1. Install dependencies: `pip install -r requirements.txt`
