@@ -1,5 +1,8 @@
 # News Recommendation with DIN + BERT Warm-up 
-
+[![Python](https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![Dataset](https://img.shields.io/badge/Dataset-MIND-blue.svg)](https://msnews.github.io/)
 This project implements a Deep Interest Network (DIN) for news recommendation on the MIND Dataset. 
 It features a Semantic Warm-up strategy using BERT embeddings to solve the item cold-start problem.
 
