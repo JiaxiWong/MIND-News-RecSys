@@ -7,7 +7,7 @@ It features a Semantic Warm-up strategy using BERT embeddings to solve the item 
 |  | Our Model | SOTA（Rank:1） | Avg. (TOP 150) |
 | :--- | :--- |:--- |:--- |
 | **Global AUC** | **0.7133** |**0.7304** |**0.697** |
-| **GAUC** | **0.6932** |**NONE** |**NONE** |
+| **Group AUC** | **0.6932** |**NONE** |**NONE** |
 | **MRR** | **0.3818** |**0.3770** |**0.345** |
 | **nDCG@5** | **0.3917** |**0.4718** |**0.378** |
 
