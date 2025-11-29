@@ -4,7 +4,7 @@ This project implements a Deep Interest Network (DIN) for news recommendation on
 It features a **Semantic Warm-up** strategy using BERT embeddings to solve the item cold-start problem.
 
 ## Performance (MIND-Large Validation) compared with SOTA
-| Metric | Score (Our Model) | SOTA（Rank:1） | Avg. (TOP 200) |
+| Metric | Score (Our Model) | SOTA（Rank:1） | Avg. (TOP 150) |
 | :--- | :--- |:--- |:--- |
 | **Global AUC** | **0.7133** |**0.7304** |**0.697** |
 | **GAUC** | **0.6932** |**NULL** |**NULL** |
